@@ -200,110 +200,5 @@ async function recognizeCardsAI(base64Image) {
   
   // معالجة أخطاء API
   if (!response.ok) {
-      const errorText = await response.text();
-      console.error("خطأ API:", errorText); 
-      let errorMessage = "الخطوة 3: فشل الاتصال بخدمة OpenAI.";
-      
-      if (response.status === 401) {
-          errorMessage = "الخطوة 3: فشل! المفتاح السري غير صالح (401)!";
-      } else {
-          errorMessage += ` الحالة: ${response.status}.`;
-      }
-      alert(errorMessage);
-      return [];
-  }
-
-  const data = await response.json();
-  const rawContent = data.choices[0].message.content;
-
-  // 🎯 التعديل الحاسم: إظهار الاستجابة الخام في تنبيه
-  alert("الاستجابة الخام من الذكاء الاصطناعي (انسخ هذا النص): " + rawContent); 
-
-  try {
-    let cleanedContent = rawContent.trim();
-    if (!cleanedContent.startsWith('[')) {
-        cleanedContent = `[${cleanedContent}]`;
-    }
-
-    const detectedCardsArray = JSON.parse(cleanedContent);
-    
-    if (!Array.isArray(detectedCardsArray)) throw new Error("لم يتم إرجاع مصفوفة JSON.");
-    
-    return detectedCardsArray;
-  } catch (e) {
-    alert("الخطوة 4: فشل! لم يتم التعرف على أي ورق واضح أو تنسيق JSON غير صحيح.");
-    console.error("خطأ في تحليل استجابة الذكاء الاصطناعي (JSON Error):", e);
-    return [];
-  }
-}
-
-// =================== دالة التحليل مع نقاط فحص الأخطاء (Checkpoints) ===================
-async function processScreenshot(){
-  const fileInput = document.getElementById("screenshot");
+      const errorText = await response
   
-  // نقطة فحص 1: هل تم اختيار ملف؟
-  if(fileInput.files.length === 0) return alert("الخطوة 1: فشل! اختر لقطة الشاشة أولاً.");
-  
-  alert("الخطوة 1: نجح اختيار الملف.");
-
-  const file = fileInput.files[0];
-  const reader = new FileReader();
-
-  reader.onload = async function(e){
-    
-    alert("الخطوة 2: نجحت قراءة الملف (Reader Load). سيتم الاتصال بالذكاء الاصطناعي.");
-
-    const base64Image = e.target.result;
-
-    const detectedCards = await recognizeCardsAI(base64Image);
-    
-    // نقطة فحص 5: هل تم إرجاع نتيجة من الذكاء الاصطناعي؟
-    if (detectedCards.length === 0) return alert("الخطوة 5: فشل! لم يتم احتساب أي ورقة.");
-    
-    // ----------------------------------------------------
-    // نجاح: بدأ الكود بتنفيذ احتساب الأوراق
-    // ----------------------------------------------------
-    let successfulPlays = 0; 
-
-    detectedCards.forEach(card=>{
-      // تحويل شامل للرموز والقيمة 10 (لحظ التوافق)
-      let code = card.trim()
-                     .replaceAll("10","T") 
-                     .replaceAll("♠","S") 
-                     .replaceAll("♥","H") 
-                     .replaceAll("♦","D") 
-                     .replaceAll("♢","D") 
-                     .replaceAll("♣","C") 
-                     .replaceAll("T","10");
-      
-      if(cards.includes(code)) {
-          play(code);
-          successfulPlays++;
-      } else {
-          console.log(`❌ فشل الاحتساب: الورقة ${card} ليست في قائمة المتبقي أو الكود المحول (${code}) غير صحيح.`);
-      }
-    });
-    
-    // رسالة تأكيد للتحقق من نتيجة العملية
-    if (successfulPlays > 0) {
-        alert(`الخطوة 5: نجاح! تم احتساب ${successfulPlays} ورقة.`);
-    } else {
-        alert(`الخطوة 5: فشل! تم التعرف على أوراق، لكن لم يتم احتساب أي منها (ربما كانت محسوبة مسبقاً).`);
-    }
-
-  };
-
-  reader.onerror = function(e) {
-      alert("خطأ حاسم: فشل متصفحك في قراءة الملف. (Reader Error)");
-      console.error("فشل قراءة الملف:", e);
-  };
-
-  reader.readAsDataURL(file);
-  alert("الخطوة 0: تم بدء قراءة الملف."); 
-}
-// ==============================================================================
-
-</script>
-
-</body>
-</html>
