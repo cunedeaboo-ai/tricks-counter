@@ -15,7 +15,7 @@ body{
 }
 
 h2{margin:20px 0 5px}
-#count{font-size:20px;margin-bottom:10px;}
+#count{font-size:20px;margin-bottom:10px}
 
 /* صندوق الورق */
 .cardsBox{
@@ -151,32 +151,65 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// ================= ميزة رفع لقطة الشاشة =================
+// ================= ميزة الذكاء الاصطناعي =================
+async function recognizeCardsAI(base64Image) {
+  const apiKey = "PUT_YOUR_API_KEY_HERE"; // 🔴 حط المفتاح هنا
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + apiKey
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "استخرج كل أوراق اللعب الظاهرة في الصورة فقط بصيغة JSON مثل: [\"A♠\",\"10♦\"]" },
+            { type: "image_url", image_url: { url: base64Image } }
+          ]
+        }
+      ],
+      max_tokens: 200
+    })
+  });
+
+  const data = await response.json();
+
+  try {
+    return JSON.parse(data.choices[0].message.content);
+  } catch {
+    alert("لم يتم التعرف على أي ورق واضح");
+    return [];
+  }
+}
+
 async function processScreenshot(){
   const fileInput = document.getElementById("screenshot");
   if(fileInput.files.length === 0) return alert("اختر لقطة الشاشة!");
+
   const file = fileInput.files[0];
   const reader = new FileReader();
 
-  reader.onload = async function(event){
-    const base64Image = event.target.result;
+  reader.onload = async function(e){
+    const base64Image = e.target.result;
 
-    // هنا ترسل الصورة ل API للتعرف على الأوراق
-    // حالياً: تجربة وهمية، ترجع بعض الأوراق كمثال
-    const detectedCards = await fakeCardRecognition(base64Image);
+    const detectedCards = await recognizeCardsAI(base64Image);
 
-    // حذف الأوراق المكتشفة من العد
-    for(let card of detectedCards){
-      if(cards.includes(card)) play(card);
-    }
+    detectedCards.forEach(card=>{
+      // تحويل الرموز إلى الحروف المستخدمة في كودك
+      let code = card.replace("♠","S")
+                     .replace("♥","H")
+                     .replace("♦","D")
+                     .replace("♣","C");
+
+      if(cards.includes(code)) play(code);
+    });
   };
-  reader.readAsDataURL(file);
-}
 
-// دالة وهمية للتجربة قبل ربط API حقيقي
-async function fakeCardRecognition(base64Image){
-  // مثال: نرجع بعض الأوراق بشكل تجريبي
-  return ["A♠","10♦"];
+  reader.readAsDataURL(file);
 }
 </script>
 
