@@ -167,13 +167,12 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// =================== الذكاء الاصطناعي ===================
+// =================== الذكاء الاصطناعي (النسخة النظيفة) ===================
 async function recognizeCardsAI(base64Image) {
   const apiKey = "PUT_YOUR_API_KEY_HERE";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
   
-  // فحص المفتاح
   if (apiKey === "PUT_YOUR_API_KEY_HERE" || apiKey.length < 10) {
-      alert("فحص المفتاح: فشل! يرجى وضع مفتاح OpenAI السري في الكود أولاً.");
+      alert("خطأ: يرجى وضع مفتاح OpenAI السري في الكود أولاً.");
       return [];
   }
 
@@ -198,7 +197,84 @@ async function recognizeCardsAI(base64Image) {
     })
   });
   
-  // معالجة أخطاء API
   if (!response.ok) {
-      const errorText = await response
+      const errorText = await response.text();
+      let errorMessage = "فشل في الاتصال بخدمة OpenAI.";
+      
+      if (response.status === 401) {
+          errorMessage = "خطأ (401): المفتاح السري غير صالح! يرجى التحقق من المفتاح والرصيد.";
+      } else {
+          errorMessage += ` الحالة: ${response.status}.`;
+      }
+      alert(errorMessage);
+      return [];
+  }
+
+  const data = await response.json();
+  const rawContent = data.choices[0].message.content;
+
+  try {
+    let cleanedContent = rawContent.trim();
+    if (!cleanedContent.startsWith('[')) {
+        cleanedContent = `[${cleanedContent}]`;
+    }
+
+    const detectedCardsArray = JSON.parse(cleanedContent);
+    
+    if (!Array.isArray(detectedCardsArray)) throw new Error("لم يتم إرجاع مصفوفة JSON.");
+    
+    return detectedCardsArray;
+  } catch (e) {
+    alert("لم يتم التعرف على أي ورق واضح.");
+    return [];
+  }
+}
+
+// =================== دالة التحليل النظيفة ===================
+async function processScreenshot(){
+  const fileInput = document.getElementById("screenshot");
   
+  if(fileInput.files.length === 0) return alert("اختر لقطة الشاشة أولاً!");
+  
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async function(e){
+    const base64Image = e.target.result;
+
+    const detectedCards = await recognizeCardsAI(base64Image);
+    
+    if (detectedCards.length === 0) return;
+    
+    let successfulPlays = 0; 
+
+    detectedCards.forEach(card=>{
+      // تحويل شامل للرموز والقيمة 10
+      let code = card.trim()
+                     .replaceAll("10","T") 
+                     .replaceAll("♠","S") 
+                     .replaceAll("♥","H") 
+                     .replaceAll("♦","D") 
+                     .replaceAll("♢","D") 
+                     .replaceAll("♣","C") 
+                     .replaceAll("T","10");
+      
+      if(cards.includes(code)) {
+          play(code);
+          successfulPlays++;
+      }
+    });
+    
+    // رسالة تأكيد النجاح
+    if (successfulPlays === 0) {
+        alert("تم التعرف على أوراق، لكن لم يتم احتساب أي منها (ربما كانت محسوبة مسبقاً).");
+    }
+
+  };
+
+  reader.readAsDataURL(file);
+}
+</script>
+
+</body>
+</html>
