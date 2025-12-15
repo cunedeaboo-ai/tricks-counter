@@ -1,209 +1,110 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>عدّ ورق التريكس</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>عداد التريكس – مـزآإجـي</title>
 
-  <audio id="clickSound" src="click.mp3" preload="auto"></audio>
+  <style>
+    body{
+      margin:0;
+      background:#111;
+      color:#fff;
+      font-family: Arial, sans-serif;
+    }
 
-<script>
-  function playSound() {
-    const sound = document.getElementById("clickSound");
-    sound.currentTime = 0;
-    sound.volume = 0.3;
-    sound.play();
-  }
-</script>
-<style>
-body{
-  font-family: Arial;
-  background:#eaeaea;
-  text-align:center;
-  padding:10px;
-  margin:0;
-}
+    /* الاسم المتغير اللون */
+    .logo{
+      position:fixed;
+      top:15px;
+      right:15px;
+      font-size:32px;
+      font-weight:bold;
+      animation: rgb 0.5s infinite;
+    }
 
-/* الاسم المتغير */
-#signature{
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  font-size: 22px;
-  font-weight: bold;
-  animation: glow 0.5s infinite;
-}
+    @keyframes rgb{
+      0%{color:red}
+      20%{color:orange}
+      40%{color:yellow}
+      60%{color:lime}
+      80%{color:cyan}
+      100%{color:magenta}
+    }
 
-@keyframes glow {
-  0%   { color: red; }
-  20%  { color: orange; }
-  40%  { color: yellow; }
-  60%  { color: green; }
-  80%  { color: blue; }
-  100% { color: purple; }
-}
+    .container{
+      margin-top:80px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:15px;
+    }
 
-h2{margin:30px 0 5px}
+    .card{
+      width:90%;
+      max-width:350px;
+      background:#fff;
+      color:#000;
+      border-radius:12px;
+      padding:15px;
+      text-align:center;
+      font-size:20px;
+    }
 
-/* العداد */
-#count{
-  font-size:20px;
-  margin-bottom:10px;
-  color:#000;
-}
+    .cards{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:10px;
+      margin-top:10px;
+    }
 
-/* صندوق الورق */
-.cardsBox{
-  background:#fff;
-  padding:10px;
-  border-radius:10px;
-  margin-bottom:10px;
-}
+    .btn{
+      padding:12px;
+      border-radius:10px;
+      font-size:18px;
+      cursor:pointer;
+      user-select:none;
+      background:#eee;
+    }
 
-/* زر الورقة */
-.cardBtn{
-  width:55px;
-  height:40px;
-  margin:4px;
-  border:1px solid #ccc;
-  border-radius:6px;
-  background:#fff;
-  font-size:16px;
-  font-weight:bold;
-}
-
-/* ألوان الورق */
-.S{color:#000;}      /* ♠ */
-.H{color:#c62828;}   /* ♥ */
-.D{color:#c62828;}   /* ♦ */
-.C{color:#000;}      /* ♣ */
-
-/* الإحصائيات */
-.stats{
-  background:#fff;
-  padding:10px;
-  border-radius:10px;
-  margin-top:10px;
-  font-size:15px;
-}
-
-/* أزرار التحكم */
-.controlBtn{
-  margin:5px;
-  padding:10px 18px;
-  font-size:15px;
-  border:none;
-  border-radius:6px;
-  color:#fff;
-}
-
-.reset{background:#555;}
-.undo{background:#1976d2;}
-</style>
+    .btn.black{color:black}
+    .btn.red{color:red}
+  </style>
 </head>
 
 <body>
 
-<div id="signature">مـزآإجـي</div>
+  <!-- الاسم -->
+  <div class="logo">مـزآإجـي</div>
 
-<h2>🂡 عدّ ورق التريكس</h2>
-<div id="count">المتبقي: 52</div>
+  <div class="container">
 
-<div class="cardsBox" id="buttons"></div>
+    <!-- عداد -->
+    <div class="card">
+      الأوراق المتبقية
+      <div id="count">52</div>
+    </div>
 
-<div class="stats" id="stats"></div>
+    <!-- الورق -->
+    <div class="card cards">
+      <div class="btn black" onclick="useCard()">♠</div>
+      <div class="btn red"   onclick="useCard()">♥</div>
+      <div class="btn black" onclick="useCard()">♣</div>
+      <div class="btn red"   onclick="useCard()">♦</div>
+    </div>
 
-<button class="controlBtn undo" onclick="undo()">↩️ تراجع</button>
-<button class="controlBtn reset" onclick="reset()">🔄 إعادة</button>
+  </div>
 
-<script>
-const suits = ['S','H','D','C'];
-const suitIcons = {S:'♠',H:'♥',D:'♦',C:'♣'};
-const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  <script>
+    let cards = 52;
 
-let cards = JSON.parse(localStorage.getItem("cards"));
-let history = JSON.parse(localStorage.getItem("history")) || [];
-let finishedSuits = {};
-
-if(!cards) reset();
-else buildButtons();
-
-function save(){
-  localStorage.setItem("cards",JSON.stringify(cards));
-  localStorage.setItem("history",JSON.stringify(history));
-}
-
-function reset(){
-  finishedSuits = {};
-  history = [];
-  cards=[];
-  for(let s of suits)
-    for(let r of ranks)
-      cards.push(r+s);
-
-  save();
-  buildButtons();
-  update();
-}
-
-function play(card){
-  if(!cards.includes(card)) return;
-
-  history.push(card);
-  cards = cards.filter(c => c !== card);
-  save();
-
-  document.getElementById(card).style.display="none";
-  update();
-}
-
-function undo(){
-  if(history.length===0) return;
-
-  let last = history.pop();
-  cards.push(last);
-  save();
-
-  document.getElementById(last).style.display="inline-block";
-  update();
-}
-
-function update(){
-  document.getElementById("count").innerText =
-    "المتبقي: " + cards.length;
-
-  let text="";
-  for(let s of suits){
-    let c = cards.filter(x => x.endsWith(s)).length;
-    text += `${suitIcons[s]} المتبقي: ${c}<br>`;
-
-    if(c===0 && !finishedSuits[s]){
-      alert(`❌ خلص هذا النوع ${suitIcons[s]}`);
-      finishedSuits[s]=true;
+    function useCard(){
+      if(cards > 0){
+        cards--;
+        document.getElementById("count").innerText = cards;
+      }
     }
-  }
-  document.getElementById("stats").innerHTML=text;
-}
-
-function buildButtons(){
-  let html="";
-  for(let s of suits){
-    for(let r of ranks){
-      let c = r+s;
-      let hidden = cards.includes(c) ? "" : "style='display:none'";
-      html += `
-        <button id="${c}" class="cardBtn ${s}"
-        onclick="play('${c}')" ${hidden}>
-        ${r}${suitIcons[s]}
-        </button>`;
-    }
-    html += "<br>";
-  }
-  document.getElementById("buttons").innerHTML=html;
-}
-</script>
+  </script>
 
 </body>
 </html>
-
-onclick="playSound(A)"
