@@ -167,7 +167,7 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// =================== الذكاء الاصطناعي (مع تحسين معالجة الأخطاء) ===================
+// =================== الذكاء الاصطناعي (مع طباعة لتصحيح الأخطاء) ===================
 async function recognizeCardsAI(base64Image) {
   const apiKey = "PUT_YOUR_API_KEY_HERE";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
   
@@ -184,12 +184,12 @@ async function recognizeCardsAI(base64Image) {
       "Authorization": "Bearer " + apiKey
     },
     body: JSON.stringify({
-      model: "gpt-4-mini", // تم تغيير النموذج ليصبح أحدث وأكثر كفاءة للرؤية
+      model: "gpt-4-mini", // نموذج قوي للرؤية
       messages: [
         {
           role: "user",
           content: [
-            { type: "text", text: "استخرج كل أوراق اللعب الظاهرة في الصورة فقط بصيغة JSON مثل: [\"A♠\",\"10♦\"]" },
+            { type: "text", text: "استخرج كل أوراق اللعب الظاهرة في الصورة فقط بصيغة JSON مثل: [\"A♠\",\"10♦\"]. لا تضف أي نص توضيحي آخر." },
             { type: "image_url", image_url: { url: base64Image } }
           ]
         }
@@ -201,10 +201,11 @@ async function recognizeCardsAI(base64Image) {
   // 🚨 معالجة أخطاء API (مثل خطأ 401: مفتاح غير صالح)
   if (!response.ok) {
       const errorText = await response.text();
+      console.error("خطأ API:", errorText); 
       let errorMessage = "فشل في الاتصال بخدمة OpenAI.";
       
       if (response.status === 401) {
-          errorMessage = "خطأ 401: المفتاح السري غير صالح (API Key Invalid)! يرجى التحقق من مفتاحك و رصيدك.";
+          errorMessage = "خطأ 401: المفتاح السري غير صالح! يرجى التحقق من مفتاحك ورصيدك.";
       } else {
           errorMessage += ` الحالة: ${response.status}. التفاصيل: ${errorText.substring(0, 100)}...`;
       }
@@ -214,21 +215,28 @@ async function recognizeCardsAI(base64Image) {
   // ---------------------------------------------
 
   const data = await response.json();
-  
-  // نضع طباعة للإجابة في الكونسول لتسهيل التصحيح في المتصفح
-  console.log("استجابة OpenAI الكاملة:", data.choices[0].message.content);
+  const rawContent = data.choices[0].message.content;
+
+  // 🎯 الخطوة الحاسمة: طباعة الاستجابة الخام في الكونسول 
+  console.log("==========================================");
+  console.log("استجابة OpenAI الخام (للتصحيح):", rawContent);
+  console.log("==========================================");
 
   try {
-    const detectedCardsArray = JSON.parse(data.choices[0].message.content);
+    let cleanedContent = rawContent.trim();
+    // إذا كان AI قد أرجع الورق بدون الأقواس المربعة الخارجية، سنضيفها يدوياً
+    if (!cleanedContent.startsWith('[')) {
+        cleanedContent = `[${cleanedContent}]`;
+    }
+
+    const detectedCardsArray = JSON.parse(cleanedContent);
     
-    // التحقق من أن النتيجة مصفوفة
     if (!Array.isArray(detectedCardsArray)) throw new Error("لم يتم إرجاع مصفوفة JSON.");
     
     return detectedCardsArray;
   } catch (e) {
-    // هذه الرسالة ستظهر فقط إذا لم يتم التعرف أو لم يكن التنسيق JSON صحيحاً
     alert("لم يتم التعرف على أي ورق واضح.");
-    console.error("خطأ في تحليل استجابة الذكاء الاصطناعي:", e);
+    console.error("خطأ في تحليل استجابة الذكاء الاصطناعي (JSON Error):", e);
     return [];
   }
 }
@@ -245,35 +253,32 @@ async function processScreenshot(){
 
     const detectedCards = await recognizeCardsAI(base64Image);
 
-    // إذا كانت المصفوفة فارغة بسبب خطأ في المفتاح، نتوقف
     if (detectedCards.length === 0) return;
     
-    // عدد الأوراق التي تم احتسابها بنجاح
     let successfulPlays = 0; 
 
     detectedCards.forEach(card=>{
-      // تحويل شامل للرموز والقيمة 10 (التعديل الذي يحل مشكلة التوافق)
+      // تحويل شامل للرموز والقيمة 10 (لحظ التوافق)
       let code = card.trim()
                      // 1. استبدال رمز 10 بالقيمة T لتجنب مشاكل الاستبدال في الخطوات اللاحقة
                      .replaceAll("10","T") 
                      // 2. تحويل الرموز إلى حروف إنجليزية (مع دعم رموز إضافية)
-                     .replaceAll("♠","S") // سباتي
-                     .replaceAll("♥","H") // كبة
-                     .replaceAll("♦","D") // ديناري (اللون الأحمر)
-                     .replaceAll("♢","D") // ديناري (اللون الأبيض/الأسود)
-                     .replaceAll("♣","C") // شريا/بستوني
+                     .replaceAll("♠","S") 
+                     .replaceAll("♥","H") 
+                     .replaceAll("♦","D") 
+                     .replaceAll("♢","D") // دعم رمز الديناري الآخر
+                     .replaceAll("♣","C") 
                      // 3. إعادة T إلى القيمة 10
                      .replaceAll("T","10");
 
-      // الآن لدينا الكود النهائي (مثلاً: "A♠" -> "AS" أو "10♦" -> "10D")
+      console.log(`محاولة احتساب الورقة المستخرجة: ${card} -> الكود المحول: ${code}`); // طباعة مساعدة
       
       // تأكد أن الورقة موجودة في قائمة الأوراق المتبقية
       if(cards.includes(code)) {
           play(code);
           successfulPlays++;
       } else {
-          // لم يتم احتساب الورقة، قد تكون محسوبة مسبقاً أو أن الكود غير صحيح
-          console.log(`تم تجاهل الورقة المستخرجة: ${card}. الكود المحول: ${code}.`);
+          console.log(`❌ فشل الاحتساب: الورقة ${card} ليست في قائمة المتبقي أو الكود المحول (${code}) غير صحيح.`);
       }
     });
     
