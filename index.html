@@ -177,7 +177,9 @@ function update(){
 
 function buildButtons(){
   let html="";
-  for(let s of suits){
+  // ترتيب الأنواع بحيث ♦ آخر
+  const displayOrder = ['S','H','C','D'];  // ♦ الدينار آخر
+  for(let s of displayOrder){
     for(let r of ranks){
       let c = r+s;
       let hidden = cards.includes(c) ? "" : "style='display:none'";
