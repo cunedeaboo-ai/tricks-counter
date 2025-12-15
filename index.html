@@ -167,12 +167,13 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// =================== الذكاء الاصطناعي (النسخة النظيفة) ===================
+// =================== الذكاء الاصطناعي (النسخة النظيفة مع المفتاح) ===================
 async function recognizeCardsAI(base64Image) {
+  // 🛑 تم تثبيت المفتاح السري الخاص بك هنا:
   const apiKey = "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";
   
-  if (apiKey === "PUT_YOUR_API_KEY_HERE" || apiKey.length < 10) {
-      alert("خطأ: يرجى وضع مفتاح OpenAI السري في الكود أولاً.");
+  if (apiKey.length < 10) { // فحص فقط للتأكد من وجود قيمة
+      alert("خطأ: المفتاح السري غير صحيح أو مفقود.");
       return [];
   }
 
@@ -202,7 +203,7 @@ async function recognizeCardsAI(base64Image) {
       let errorMessage = "فشل في الاتصال بخدمة OpenAI.";
       
       if (response.status === 401) {
-          errorMessage = "خطأ (401): المفتاح السري غير صالح! يرجى التحقق من المفتاح والرصيد.";
+          errorMessage = "خطأ (401): المفتاح السري غير صالح! يرجى التحقق من الرصيد.";
       } else {
           errorMessage += ` الحالة: ${response.status}.`;
       }
@@ -230,8 +231,11 @@ async function recognizeCardsAI(base64Image) {
   }
 }
 
-// =================== دالة التحليل النظيفة ===================
+// =================== دالة التحليل مع نقطة فحص الزر ===================
 async function processScreenshot(){
+  // 🛑 نقطة الفحص 1: هل وصلت إلى هنا؟
+  alert("نقطة فحص 1: تم الضغط على زر التحليل."); 
+    
   const fileInput = document.getElementById("screenshot");
   
   if(fileInput.files.length === 0) return alert("اختر لقطة الشاشة أولاً!");
@@ -274,6 +278,7 @@ async function processScreenshot(){
 
   reader.readAsDataURL(file);
 }
+// ==============================================================================
 </script>
 
 </body>
