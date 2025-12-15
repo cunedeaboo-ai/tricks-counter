@@ -36,6 +36,13 @@ h2{margin:20px 0 5px}
   font-weight:bold;
 }
 
+/* حالة البطاقة المحسوبة (أفضل من الإخفاء) */
+.cardBtn.counted{
+  opacity: 0.3; /* لجعلها باهتة */
+  pointer-events: none; /* لمنع الضغط عليها مرة أخرى */
+  text-decoration: line-through;
+}
+
 .S{color:#000;}
 .H{color:#c62828;}
 .D{color:#c62828;}
@@ -68,7 +75,6 @@ h2{margin:20px 0 5px}
 <h2>🂡 عدّ ورق التريكس</h2>
 <div id="count">المتبقي: 52</div>
 
-<!-- رفع لقطة الشاشة -->
 <input type="file" id="screenshot" accept="image/*"><br><br>
 <button class="controlBtn add" onclick="processScreenshot()">📷 تحليل لقطة الشاشة</button>
 
@@ -79,7 +85,7 @@ h2{margin:20px 0 5px}
 <button class="controlBtn reset" onclick="reset()">🔄 إعادة</button>
 
 <script>
-const suits = ['S','H','C','D']; // ♦ آخر
+const suits = ['S','H','C','D']; // D = ♦
 const suitIcons = {S:'♠',H:'♥',D:'♦',C:'♣'};
 const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
@@ -95,6 +101,10 @@ function save(){
 }
 
 function reset(){
+  // طلب تأكيد قبل الإعادة
+  if(!confirm("هل أنت متأكد من إعادة تعيين اللعبة؟ ستفقد كل الأوراق المحسوبة."))
+    return;
+    
   history=[];
   cards=[];
   for(let s of suits)
@@ -111,7 +121,8 @@ function play(card){
   history.push(card);
   cards = cards.filter(c => c!==card);
   save();
-  document.getElementById(card).style.display="none";
+  // تعديل: نطبق كلاس "counted" بدلاً من style.display="none"
+  document.getElementById(card).classList.add("counted"); 
   update();
 }
 
@@ -120,12 +131,14 @@ function undo(){
   let last = history.pop();
   cards.push(last);
   save();
-  document.getElementById(last).style.display="inline-block";
+  // تعديل: نحذف كلاس "counted" بدلاً من style.display="inline-block"
+  document.getElementById(last).classList.remove("counted");
   update();
 }
 
 function update(){
-  document.getElementById("count").innerText="المتبقي: "+cards.length;
+  const playedCount = 52 - cards.length;
+  document.getElementById("count").innerText=`تم اللعب: ${playedCount} | المتبقي: ${cards.length}`;
   let text="";
   for(let s of suits){
     let c = cards.filter(x=>x.endsWith(s)).length;
@@ -139,10 +152,13 @@ function buildButtons(){
   for(let s of suits){
     for(let r of ranks){
       let c=r+s;
-      let hidden = cards.includes(c) ? "" : "style='display:none'";
+      // نتحقق مما إذا كانت البطاقة تم عدها مسبقاً
+      let isCounted = !cards.includes(c);
+      let countedClass = isCounted ? " counted" : "";
+      
       html+=`
-      <button id="${c}" class="cardBtn ${s}"
-      onclick="play('${c}')" ${hidden}>
+      <button id="${c}" class="cardBtn ${s}${countedClass}"
+      onclick="play('${c}')">
       ${r}${suitIcons[s]}
       </button>`;
     }
@@ -151,9 +167,15 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// =================== الذكاء الاصطناعي ===================
+// =================== الذكاء الاصطناعي (مع تحسين معالجة الأخطاء) ===================
 async function recognizeCardsAI(base64Image) {
-  const apiKey = "PUT_YOUR_API_KEY_HERE"; // 🔴 ضع مفتاح OpenAI هنا
+  const apiKey = "PUT_YOUR_API_KEY_HERE"; // 🔴 تأكد أن المفتاح هنا
+  
+  // تحقق بسيط من أن المستخدم وضع مفتاحاً
+  if (apiKey === "PUT_YOUR_API_KEY_HERE" || apiKey.length < 10) {
+      alert("يرجى وضع مفتاح OpenAI السري في الكود أولاً!");
+      return [];
+  }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -162,7 +184,7 @@ async function recognizeCardsAI(base64Image) {
       "Authorization": "Bearer " + apiKey
     },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
+      model: "gpt-4-mini", // تم تغيير النموذج ليصبح أحدث وأكثر كفاءة للرؤية
       messages: [
         {
           role: "user",
@@ -175,13 +197,38 @@ async function recognizeCardsAI(base64Image) {
       max_tokens: 200
     })
   });
+  
+  // 🚨 معالجة أخطاء API (مثل خطأ 401: مفتاح غير صالح)
+  if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = "فشل في الاتصال بخدمة OpenAI.";
+      
+      if (response.status === 401) {
+          errorMessage = "خطأ 401: المفتاح السري غير صالح (API Key Invalid)! يرجى التحقق من مفتاحك و رصيدك.";
+      } else {
+          errorMessage += ` الحالة: ${response.status}. التفاصيل: ${errorText.substring(0, 100)}...`;
+      }
+      alert(errorMessage);
+      return [];
+  }
+  // ---------------------------------------------
 
   const data = await response.json();
+  
+  // نضع طباعة للإجابة في الكونسول لتسهيل التصحيح في المتصفح
+  console.log("استجابة OpenAI الكاملة:", data.choices[0].message.content);
 
   try {
-    return JSON.parse(data.choices[0].message.content);
-  } catch {
-    alert("لم يتم التعرف على أي ورق واضح");
+    const detectedCardsArray = JSON.parse(data.choices[0].message.content);
+    
+    // التحقق من أن النتيجة مصفوفة
+    if (!Array.isArray(detectedCardsArray)) throw new Error("لم يتم إرجاع مصفوفة JSON.");
+    
+    return detectedCardsArray;
+  } catch (e) {
+    // هذه الرسالة ستظهر فقط إذا لم يتم التعرف أو لم يكن التنسيق JSON صحيحاً
+    alert("لم يتم التعرف على أي ورق واضح.");
+    console.error("خطأ في تحليل استجابة الذكاء الاصطناعي:", e);
     return [];
   }
 }
@@ -198,6 +245,9 @@ async function processScreenshot(){
 
     const detectedCards = await recognizeCardsAI(base64Image);
 
+    // إذا كانت المصفوفة فارغة بسبب خطأ في المفتاح، نتوقف
+    if (detectedCards.length === 0) return;
+
     detectedCards.forEach(card=>{
       // تحويل الرموز إلى الحروف المستخدمة في كودك
       let code = card.replace("♠","S")
@@ -205,7 +255,12 @@ async function processScreenshot(){
                      .replace("♦","D")
                      .replace("♣","C");
 
-      if(cards.includes(code)) play(code);
+      // تأكد أن الورقة موجودة في قائمة الأوراق المتبقية
+      if(cards.includes(code)) {
+          play(code);
+      } else {
+          console.log(`تم تجاهل الورقة ${card} لأنها محسوبة مسبقاً.`);
+      }
     });
   };
 
