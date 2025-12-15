@@ -14,32 +14,11 @@ body{
   margin:0;
 }
 
-/* الاسم المتغير */
-#signature{
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  font-size: 22px;
-  font-weight: bold;
-  animation: glow 0.5s infinite;
-}
+h2{margin:20px 0 5px}
 
-@keyframes glow {
-  0%   { color: red; }
-  20%  { color: orange; }
-  40%  { color: yellow; }
-  60%  { color: green; }
-  80%  { color: blue; }
-  100% { color: purple; }
-}
-
-h2{margin:30px 0 5px}
-
-/* العداد */
 #count{
   font-size:20px;
   margin-bottom:10px;
-  color:#000;
 }
 
 /* صندوق الورق */
@@ -47,37 +26,33 @@ h2{margin:30px 0 5px}
   background:#fff;
   padding:10px;
   border-radius:10px;
-  margin-bottom:10px;
 }
 
-/* زر الورقة - حجم أكبر */
+/* زر الورقة */
 .cardBtn{
-  width:110px;     /* عرض أكبر */
-  height:80px;     /* ارتفاع أكبر */
+  width:110px;
+  height:80px;
   margin:6px;
   border:1px solid #ccc;
   border-radius:6px;
   background:#fff;
-  font-size:32px;  /* خط أكبر */
+  font-size:32px;
   font-weight:bold;
 }
 
-/* ألوان الورق */
-.S{color:#000;}      /* ♠ */
-.H{color:#c62828;}   /* ♥ */
-.D{color:#c62828;}   /* ♦ */
-.C{color:#000;}      /* ♣ */
+.S{color:#000;}
+.H{color:#c62828;}
+.D{color:#c62828;}
+.C{color:#000;}
 
-/* الإحصائيات */
 .stats{
   background:#fff;
   padding:10px;
   border-radius:10px;
   margin-top:10px;
-  font-size:15px;
 }
 
-/* أزرار التحكم */
+/* التحكم */
 .controlBtn{
   margin:5px;
   padding:10px 18px;
@@ -87,17 +62,25 @@ h2{margin:30px 0 5px}
   color:#fff;
 }
 
-.reset{background:#555;}
 .undo{background:#1976d2;}
+.reset{background:#555;}
+.add{background:#2e7d32;}
 </style>
 </head>
 
 <body>
 
-<div id="signature">مـزآإجـي</div>
-
 <h2>🂡 عدّ ورق التريكس</h2>
 <div id="count">المتبقي: 52</div>
+
+<!-- رفع صورة -->
+<input type="file" accept="image/*"><br><br>
+
+<!-- اختيار الورقة -->
+<select id="cardSelect"></select>
+<br><br>
+
+<button class="controlBtn add" onclick="addFromImage()">📷 إضافة الورقة</button>
 
 <div class="cardsBox" id="buttons"></div>
 
@@ -107,16 +90,17 @@ h2{margin:30px 0 5px}
 <button class="controlBtn reset" onclick="reset()">🔄 إعادة</button>
 
 <script>
-const suits = ['S','H','D','C'];
+const suits = ['S','H','C','D']; // ♦ آخر
 const suitIcons = {S:'♠',H:'♥',D:'♦',C:'♣'};
 const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
 
 let cards = JSON.parse(localStorage.getItem("cards"));
 let history = JSON.parse(localStorage.getItem("history")) || [];
-let finishedSuits = {};
 
 if(!cards) reset();
 else buildButtons();
+
+buildSelect();
 
 function save(){
   localStorage.setItem("cards",JSON.stringify(cards));
@@ -124,8 +108,7 @@ function save(){
 }
 
 function reset(){
-  finishedSuits = {};
-  history = [];
+  history=[];
   cards=[];
   for(let s of suits)
     for(let r of ranks)
@@ -137,10 +120,10 @@ function reset(){
 }
 
 function play(card){
-  if(!cards.includes(card)) return;
+  if(!cards.includes(card)) return alert("الورقة محسوبة!");
 
   history.push(card);
-  cards = cards.filter(c => c !== card);
+  cards = cards.filter(c => c!==card);
   save();
 
   document.getElementById(card).style.display="none";
@@ -149,49 +132,58 @@ function play(card){
 
 function undo(){
   if(history.length===0) return;
-
   let last = history.pop();
   cards.push(last);
   save();
-
   document.getElementById(last).style.display="inline-block";
   update();
 }
 
 function update(){
-  document.getElementById("count").innerText =
-    "المتبقي: " + cards.length;
+  document.getElementById("count").innerText="المتبقي: "+cards.length;
 
   let text="";
   for(let s of suits){
-    let c = cards.filter(x => x.endsWith(s)).length;
+    let c = cards.filter(x=>x.endsWith(s)).length;
     text += `${suitIcons[s]} المتبقي: ${c}<br>`;
-
-    if(c===0 && !finishedSuits[s]){
-      alert(`❌ خلص هذا النوع ${suitIcons[s]}`);
-      finishedSuits[s]=true;
-    }
   }
   document.getElementById("stats").innerHTML=text;
 }
 
 function buildButtons(){
   let html="";
-  // ترتيب الأنواع بحيث ♦ آخر
-  const displayOrder = ['S','H','C','D'];  // ♦ الدينار آخر
-  for(let s of displayOrder){
+  for(let s of suits){
     for(let r of ranks){
-      let c = r+s;
+      let c=r+s;
       let hidden = cards.includes(c) ? "" : "style='display:none'";
-      html += `
-        <button id="${c}" class="cardBtn ${s}"
-        onclick="play('${c}')" ${hidden}>
-        ${r}${suitIcons[s]}
-        </button>`;
+      html+=`
+      <button id="${c}" class="cardBtn ${s}"
+      onclick="play('${c}')" ${hidden}>
+      ${r}${suitIcons[s]}
+      </button>`;
     }
-    html += "<br>";
+    html+="<br>";
   }
   document.getElementById("buttons").innerHTML=html;
+}
+
+function buildSelect(){
+  let sel=document.getElementById("cardSelect");
+  for(let s of suits){
+    for(let r of ranks){
+      let c=r+s;
+      let opt=document.createElement("option");
+      opt.value=c;
+      opt.textContent=r+suitIcons[s];
+      sel.appendChild(opt);
+    }
+  }
+}
+
+/* محاكاة التعرف من الصورة */
+function addFromImage(){
+  let card=document.getElementById("cardSelect").value;
+  play(card);
 }
 </script>
 
