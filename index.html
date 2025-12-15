@@ -167,13 +167,13 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// =================== الذكاء الاصطناعي (مع طباعة لتصحيح الأخطاء) ===================
+// =================== الذكاء الاصطناعي ===================
 async function recognizeCardsAI(base64Image) {
   const apiKey = "PUT_YOUR_API_KEY_HERE";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
   
-  // تحقق بسيط من أن المستخدم وضع مفتاحاً
+  // فحص المفتاح
   if (apiKey === "PUT_YOUR_API_KEY_HERE" || apiKey.length < 10) {
-      alert("يرجى وضع مفتاح OpenAI السري في الكود أولاً!");
+      alert("فحص المفتاح: فشل! يرجى وضع مفتاح OpenAI السري في الكود أولاً.");
       return [];
   }
 
@@ -184,7 +184,7 @@ async function recognizeCardsAI(base64Image) {
       "Authorization": "Bearer " + apiKey
     },
     body: JSON.stringify({
-      model: "gpt-4-mini", // نموذج قوي للرؤية
+      model: "gpt-4-mini", 
       messages: [
         {
           role: "user",
@@ -198,33 +198,27 @@ async function recognizeCardsAI(base64Image) {
     })
   });
   
-  // 🚨 معالجة أخطاء API (مثل خطأ 401: مفتاح غير صالح)
+  // معالجة أخطاء API
   if (!response.ok) {
       const errorText = await response.text();
       console.error("خطأ API:", errorText); 
-      let errorMessage = "فشل في الاتصال بخدمة OpenAI.";
+      let errorMessage = "الخطوة 3: فشل الاتصال بخدمة OpenAI.";
       
       if (response.status === 401) {
-          errorMessage = "خطأ 401: المفتاح السري غير صالح! يرجى التحقق من مفتاحك ورصيدك.";
+          errorMessage = "الخطوة 3: فشل! المفتاح السري غير صالح (401)!";
       } else {
-          errorMessage += ` الحالة: ${response.status}. التفاصيل: ${errorText.substring(0, 100)}...`;
+          errorMessage += ` الحالة: ${response.status}.`;
       }
       alert(errorMessage);
       return [];
   }
-  // ---------------------------------------------
 
   const data = await response.json();
   const rawContent = data.choices[0].message.content;
-
-  // 🎯 الخطوة الحاسمة: طباعة الاستجابة الخام في الكونسول 
-  console.log("==========================================");
   console.log("استجابة OpenAI الخام (للتصحيح):", rawContent);
-  console.log("==========================================");
 
   try {
     let cleanedContent = rawContent.trim();
-    // إذا كان AI قد أرجع الورق بدون الأقواس المربعة الخارجية، سنضيفها يدوياً
     if (!cleanedContent.startsWith('[')) {
         cleanedContent = `[${cleanedContent}]`;
     }
@@ -235,45 +229,51 @@ async function recognizeCardsAI(base64Image) {
     
     return detectedCardsArray;
   } catch (e) {
-    alert("لم يتم التعرف على أي ورق واضح.");
+    alert("الخطوة 4: فشل! لم يتم التعرف على أي ورق واضح أو تنسيق JSON غير صحيح.");
     console.error("خطأ في تحليل استجابة الذكاء الاصطناعي (JSON Error):", e);
     return [];
   }
 }
 
+// =================== دالة التحليل مع نقاط فحص الأخطاء (Checkpoints) ===================
 async function processScreenshot(){
   const fileInput = document.getElementById("screenshot");
-  if(fileInput.files.length === 0) return alert("اختر لقطة الشاشة!");
+  
+  // نقطة فحص 1: هل تم اختيار ملف؟
+  if(fileInput.files.length === 0) return alert("الخطوة 1: فشل! اختر لقطة الشاشة أولاً.");
+  
+  alert("الخطوة 1: نجح اختيار الملف.");
 
   const file = fileInput.files[0];
   const reader = new FileReader();
 
   reader.onload = async function(e){
+    
+    alert("الخطوة 2: نجحت قراءة الملف (Reader Load). سيتم الاتصال بالذكاء الاصطناعي.");
+
     const base64Image = e.target.result;
 
     const detectedCards = await recognizeCardsAI(base64Image);
-
-    if (detectedCards.length === 0) return;
     
+    // نقطة فحص 5: هل تم إرجاع نتيجة من الذكاء الاصطناعي؟
+    if (detectedCards.length === 0) return alert("الخطوة 5: فشل! لم يتم احتساب أي ورقة.");
+    
+    // ----------------------------------------------------
+    // نجاح: بدأ الكود بتنفيذ احتساب الأوراق
+    // ----------------------------------------------------
     let successfulPlays = 0; 
 
     detectedCards.forEach(card=>{
       // تحويل شامل للرموز والقيمة 10 (لحظ التوافق)
       let code = card.trim()
-                     // 1. استبدال رمز 10 بالقيمة T لتجنب مشاكل الاستبدال في الخطوات اللاحقة
                      .replaceAll("10","T") 
-                     // 2. تحويل الرموز إلى حروف إنجليزية (مع دعم رموز إضافية)
                      .replaceAll("♠","S") 
                      .replaceAll("♥","H") 
                      .replaceAll("♦","D") 
-                     .replaceAll("♢","D") // دعم رمز الديناري الآخر
+                     .replaceAll("♢","D") 
                      .replaceAll("♣","C") 
-                     // 3. إعادة T إلى القيمة 10
                      .replaceAll("T","10");
-
-      console.log(`محاولة احتساب الورقة المستخرجة: ${card} -> الكود المحول: ${code}`); // طباعة مساعدة
       
-      // تأكد أن الورقة موجودة في قائمة الأوراق المتبقية
       if(cards.includes(code)) {
           play(code);
           successfulPlays++;
@@ -284,15 +284,23 @@ async function processScreenshot(){
     
     // رسالة تأكيد للتحقق من نتيجة العملية
     if (successfulPlays > 0) {
-        alert(`تم احتساب ${successfulPlays} ورقة بنجاح.`);
+        alert(`الخطوة 5: نجاح! تم احتساب ${successfulPlays} ورقة.`);
     } else {
-        alert(`تم التعرف على أوراق، لكن لم يتم احتساب أي منها. (ربما كانت محسوبة مسبقاً أو يوجد خطأ في التنسيق).`);
+        alert(`الخطوة 5: فشل! تم التعرف على أوراق، لكن لم يتم احتساب أي منها (ربما كانت محسوبة مسبقاً).`);
     }
 
   };
 
+  reader.onerror = function(e) {
+      alert("خطأ حاسم: فشل متصفحك في قراءة الملف. (Reader Error)");
+      console.error("فشل قراءة الملف:", e);
+  };
+
   reader.readAsDataURL(file);
+  alert("الخطوة 0: تم بدء قراءة الملف."); 
 }
+// ==============================================================================
+
 </script>
 
 </body>
