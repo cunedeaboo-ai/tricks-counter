@@ -167,7 +167,7 @@ function buildButtons(){
   document.getElementById("buttons").innerHTML=html;
 }
 
-// =================== الذكاء الاصطناعي (مع مفتاحك السري ونقطة فحص 3) ===================
+// =================== الذكاء الاصطناعي (النسخة النظيفة والنهائية) ===================
 async function recognizeCardsAI(base64Image) {
   // 🛑 تم تثبيت المفتاح السري الخاص بك هنا:
   const apiKey = "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";
@@ -205,8 +205,7 @@ async function recognizeCardsAI(base64Image) {
       if (response.status === 401) {
           errorMessage = "خطأ (401): المفتاح السري غير صالح! يرجى التحقق من الرصيد.";
       } else {
-          // 🛑 نقطة فحص 2: خطأ شبكة أو حالة غير متوقعة
-          errorMessage += ` الحالة: ${response.status}. الاستجابة: ${errorText.substring(0, 100)}`;
+          errorMessage += ` الحالة: ${response.status}.`;
       }
       alert(errorMessage);
       return [];
@@ -214,9 +213,6 @@ async function recognizeCardsAI(base64Image) {
 
   const data = await response.json();
   const rawContent = data.choices[0].message.content;
-
-  // 🛑 نقطة فحص 3: عرض الاستجابة الخام لغرض التشخيص
-  alert("نقطة فحص 3: الاستجابة الخام. انسخ النص: " + rawContent); 
 
   try {
     let cleanedContent = rawContent.trim();
@@ -235,11 +231,9 @@ async function recognizeCardsAI(base64Image) {
   }
 }
 
-// =================== دالة التحليل مع نقطة فحص الزر ===================
+// =================== دالة التحليل النظيفة ===================
 async function processScreenshot(){
-  // 🛑 نقطة فحص 1: هل وصلت إلى هنا؟
-  alert("نقطة فحص 1: تم الضغط على زر التحليل."); 
-    
+  
   const fileInput = document.getElementById("screenshot");
   
   if(fileInput.files.length === 0) return alert("اختر لقطة الشاشة أولاً!");
@@ -276,13 +270,14 @@ async function processScreenshot(){
     // رسالة تأكيد النجاح
     if (successfulPlays === 0) {
         alert("تم التعرف على أوراق، لكن لم يتم احتساب أي منها (ربما كانت محسوبة مسبقاً).");
+    } else {
+        alert(`نجاح: تم احتساب ${successfulPlays} ورقة.`);
     }
 
   };
 
   reader.readAsDataURL(file);
 }
-// ==============================================================================
 </script>
 
 </body>
