@@ -215,7 +215,9 @@ async function recognizeCardsAI(base64Image) {
 
   const data = await response.json();
   const rawContent = data.choices[0].message.content;
-  console.log("استجابة OpenAI الخام (للتصحيح):", rawContent);
+
+  // 🎯 التعديل الحاسم: إظهار الاستجابة الخام في تنبيه
+  alert("الاستجابة الخام من الذكاء الاصطناعي (انسخ هذا النص): " + rawContent); 
 
   try {
     let cleanedContent = rawContent.trim();
