@@ -2,48 +2,99 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>عدّاد التريكس الذكي</title>
-    <script async src="https://docs.opencv.org/4.5.0/opencv.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محلل التريكس الذكي - Template Matching</title>
+    <script async src="https://docs.opencv.org/4.5.0/opencv.js" onload="onOpenCvReady();"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px; }
-        .card { background: white; border-radius: 8px; padding: 15px; border: 2px solid #ddd; font-size: 24px; font-weight: bold; }
-        .hidden { display: none; }
-        #loading { color: orange; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a2e; color: white; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 400px; margin: 20px auto; }
+        .card { background: #16213e; border: 2px solid #0f3460; border-radius: 10px; padding: 15px 5px; font-weight: bold; transition: 0.4s; color: #e94560; }
+        .hidden { opacity: 0.1; filter: grayscale(100%); border-color: transparent; transform: scale(0.8); }
+        #status { background: #0f3460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-bottom: 3px solid #e94560; }
+        #imageInput { margin: 10px 0; padding: 10px; color: white; }
     </style>
 </head>
 <body>
-    <h1>عدّ ورق التريكس الذكي 🃏</h1>
-    <input type="file" id="upload" accept="image/*">
-    <div id="status"></div>
+
+    <div id="status">جاري تشغيل محرك البحث البصري... ⚙️</div>
     
-    <div class="grid" id="cardsBoard">
-        </div>
+    <input type="file" id="imageInput" accept="image/*" disabled>
+    
+    <div class="grid" id="board"></div>
 
     <script>
-        const cards = ['AS', 'KS', 'QS', 'JS', '10S']; // أضف بقية الأسماء هنا لاحقاً
-        const board = document.getElementById('cardsBoard');
+        let cvReady = false;
+        const cardsS = ['AS', 'KS', 'QS', 'JS', '10S', '9S', '8S', '7S', '6S', '5S', '4S', '3S', '2S'];
 
-        // إنشاء المربعات
-        cards.forEach(c => {
-            const div = document.createElement('div');
-            div.className = 'card';
-            div.id = `card-${c}`;
-            div.innerText = c;
-            board.appendChild(div);
+        function onOpenCvReady() {
+            cvReady = true;
+            document.getElementById('status').innerText = "المحرك جاهز! ارفع لقطة الشاشة 🚀";
+            document.getElementById('imageInput').disabled = false;
+            initBoard();
+        }
+
+        function initBoard() {
+            const board = document.getElementById('board');
+            cardsS.forEach(card => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.id = `card-${card}`;
+                div.innerText = card;
+                board.appendChild(div);
+            });
+        }
+
+        document.getElementById('imageInput').addEventListener('change', async (e) => {
+            if(!cvReady) return;
+            const file = e.target.files[0];
+            const img = await createImageBitmap(file);
+            processImage(img);
         });
 
-        document.getElementById('upload').addEventListener('change', async (e) => {
-            const status = document.getElementById('status');
-            status.innerText = "جاري التحليل والبحث عن الأوراق... ⏳";
+        async function processImage(imgSource) {
+            document.getElementById('status').innerText = "جاري مطابقة الصور (Template Matching)... 🔍";
             
-            // هنا كود المعالجة بالذكاء الاصطناعي للمقارنة بين الصور
-            // سيتم استدعاء كل صورة من مجلد card_templates والمقارنة
-            setTimeout(() => {
-                document.getElementById('card-AS').classList.add('hidden');
-                status.innerText = "تم حذف الآص السبيت بنجاح! ✅";
-            }, 2000);
-        });
+            let src = cv.imread(imgSource);
+            let srcGray = new cv.Mat();
+            cv.cvtColor(src, srcGray, cv.COLOR_RGBA2GRAY, 0); // تحويل الصورة للرمادي لزيادة دقة المطابقة
+
+            for (let card of cardsS) {
+                await matchTemplateForCard(card, srcGray);
+            }
+
+            document.getElementById('status').innerText = "تم المسح بنجاح! ✅";
+            src.delete(); srcGray.delete();
+        }
+
+        async function matchTemplateForCard(cardName, srcGray) {
+            try {
+                const response = await fetch(`card_templates/${cardName}.png`);
+                if (!response.ok) return;
+
+                const blob = await response.blob();
+                const templImg = await createImageBitmap(blob);
+                let templ = cv.imread(templImg);
+                let templGray = new cv.Mat();
+                cv.cvtColor(templ, templGray, cv.COLOR_RGBA2GRAY, 0);
+
+                let dst = new cv.Mat();
+                let mask = new cv.Mat();
+                
+                // خوارزمية Template Matching
+                cv.matchTemplate(srcGray, templGray, dst, cv.TM_CCOEFF_NORMED, mask);
+                let result = cv.minMaxLoc(dst, mask);
+
+                // نسبة التطابق (Threshold)
+                // قمت بخفضها لـ 0.65 لضمان العثور على الورقة حتى مع اختلاف الإضاءة
+                if (result.maxVal > 0.65) {
+                    document.getElementById(`card-${cardName}`).classList.add('hidden');
+                }
+
+                templ.delete(); templGray.delete(); dst.delete(); mask.delete();
+            } catch (err) {
+                console.error("خطأ في مطابقة: " + cardName, err);
+            }
+        }
     </script>
 </body>
 </html>
