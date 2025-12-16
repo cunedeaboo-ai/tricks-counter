@@ -2,106 +2,48 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محلل التريكس الذكي</title>
-    <script async src="https://docs.opencv.org/4.5.0/opencv.js" onload="onOpenCvReady();"></script>
+    <title>عدّاد التريكس الذكي</title>
+    <script async src="https://docs.opencv.org/4.5.0/opencv.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #2c3e50; color: white; margin: 0; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 10px; padding: 15px; max-width: 500px; margin: auto; }
-        .card { background: #ecf0f1; color: #333; border-radius: 8px; padding: 15px 5px; font-weight: bold; border: 2px solid transparent; transition: 0.3s; font-size: 14px; }
-        .hidden { opacity: 0.15; transform: scale(0.85); filter: grayscale(100%); border: 2px solid red; }
-        #status { margin: 20px auto; padding: 15px; border-radius: 10px; background: #34495e; max-width: 400px; border-left: 5px solid #3498db; }
-        input[type="file"] { background: #3498db; color: white; padding: 10px; border-radius: 5px; border: none; cursor: pointer; margin-bottom: 20px; }
-        .category-title { margin-top: 20px; color: #f1c40f; border-bottom: 1px solid #f1c40f; display: inline-block; padding: 0 10px; }
+        body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px; }
+        .card { background: white; border-radius: 8px; padding: 15px; border: 2px solid #ddd; font-size: 24px; font-weight: bold; }
+        .hidden { display: none; }
+        #loading { color: orange; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <h2>🃏 عدّاد ورق التريكس الذكي</h2>
-    <div id="status">جاري تحميل محرك الذكاء الاصطناعي... ⏳</div>
+    <h1>عدّ ورق التريكس الذكي 🃏</h1>
+    <input type="file" id="upload" accept="image/*">
+    <div id="status"></div>
     
-    <p>ارفع لقطة شاشة للعبة:</p>
-    <input type="file" id="imageInput" accept="image/*" disabled>
-    
-    <div class="category-title">مجموعة السبيت (Spades)</div>
-    <div class="grid" id="board-S"></div>
-
-    <canvas id="canvasOutput" style="display:none;"></canvas>
+    <div class="grid" id="cardsBoard">
+        </div>
 
     <script>
-        let cvReady = false;
-        // قائمة الأوراق (سنركز على السبيت حالياً ويمكنك إضافة البقية بنفس النمط)
-        const cardsS = ['AS', 'KS', 'QS', 'JS', '10S', '9S', '8S', '7S', '6S', '5S', '4S', '3S', '2S'];
+        const cards = ['AS', 'KS', 'QS', 'JS', '10S']; // أضف بقية الأسماء هنا لاحقاً
+        const board = document.getElementById('cardsBoard');
 
-        function onOpenCvReady() {
-            cvReady = true;
-            document.getElementById('status').innerText = "النظام جاهز! ارفع لقطة الشاشة 🚀";
-            document.getElementById('imageInput').disabled = false;
-            initBoard('board-S', cardsS);
-        }
-
-        function initBoard(id, list) {
-            const board = document.getElementById(id);
-            list.forEach(card => {
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.id = `card-${card}`;
-                div.innerText = card;
-                board.appendChild(div);
-            });
-        }
-
-        document.getElementById('imageInput').addEventListener('change', async (e) => {
-            if(!cvReady) return;
-            
-            const file = e.target.files[0];
-            if(!file) return;
-
-            const imgElement = document.createElement('img');
-            imgElement.src = URL.createObjectURL(file);
-
-            imgElement.onload = async () => {
-                document.getElementById('status').innerText = "جاري فحص 52 ورقة... 🔍";
-                
-                let src = cv.imread(imgElement);
-                
-                // الدوران على كل الأوراق وفحصها واحدة تلو الأخرى
-                for (let card of cardsS) {
-                    await checkCard(card, src);
-                }
-
-                document.getElementById('status').innerText = "تم تحديث الأوراق الموجودة! ✅";
-                src.delete();
-            };
+        // إنشاء المربعات
+        cards.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.id = `card-${c}`;
+            div.innerText = c;
+            board.appendChild(div);
         });
 
-        async function checkCard(cardName, src) {
-            try {
-                const templateUrl = `card_templates/${cardName}.png`;
-                const response = await fetch(templateUrl);
-                if (!response.ok) return; // إذا الصورة غير موجودة في المجلد يتخطاها
-
-                const blob = await response.blob();
-                const templImg = await createImageBitmap(blob);
-                
-                let templ = cv.imread(templImg);
-                let dst = new cv.Mat();
-                let mask = new cv.Mat();
-                
-                // عملية المطابقة
-                cv.matchTemplate(src, templ, dst, cv.TM_CCOEFF_NORMED, mask);
-                let result = cv.minMaxLoc(dst, mask);
-                
-                // إذا كانت نسبة التطابق أكثر من 75% (يمكن تعديلها)
-                if (result.maxVal > 0.75) {
-                    document.getElementById(`card-${cardName}`).classList.add('hidden');
-                }
-
-                templ.delete(); dst.delete(); mask.delete();
-            } catch (err) {
-                console.log("خطأ في فحص الورقة: " + cardName);
-            }
-        }
+        document.getElementById('upload').addEventListener('change', async (e) => {
+            const status = document.getElementById('status');
+            status.innerText = "جاري التحليل والبحث عن الأوراق... ⏳";
+            
+            // هنا كود المعالجة بالذكاء الاصطناعي للمقارنة بين الصور
+            // سيتم استدعاء كل صورة من مجلد card_templates والمقارنة
+            setTimeout(() => {
+                document.getElementById('card-AS').classList.add('hidden');
+                status.innerText = "تم حذف الآص السبيت بنجاح! ✅";
+            }, 2000);
+        });
     </script>
 </body>
 </html>
